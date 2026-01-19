@@ -3,17 +3,21 @@
   "version": "1.0.0",
   "description": "Sentinel - Health enforcement desktop lock",
   "main": "./out/main/index.js",
-  "author": "",
+  "author": "Colin Swan",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/colinswan/colinswan-sentinel-app-v1.git"
+  },
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "start": "electron .",
     "postinstall": "electron-builder install-app-deps",
-    "build:mac": "npm run build && electron-builder --mac",
-    "build:win": "npm run build && electron-builder --win",
-    "build:linux": "npm run build && electron-builder --linux"
+    "build:mac": "npm run build && electron-builder --mac --publish never",
+    "build:win": "npm run build && electron-builder --win --publish never",
+    "build:linux": "npm run build && electron-builder --linux --publish never"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.1",
