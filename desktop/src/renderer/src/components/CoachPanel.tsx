@@ -15,9 +15,9 @@ interface CoachPanelProps {
 type HelpType =
   | 'procrastinating'
   | 'stuck'
-  | 'doubting_myself'
+  | 'doubting'
   | 'overwhelmed'
-  | 'lost_focus'
+  | 'unfocused'
   | 'motivation'
 
 interface HelpButton {
@@ -30,9 +30,9 @@ interface HelpButton {
 const HELP_BUTTONS: HelpButton[] = [
   { label: 'Procrastinating', type: 'procrastinating', emoji: '🔥', gradient: 'from-orange-500 to-red-500' },
   { label: 'Stuck', type: 'stuck', emoji: '🧩', gradient: 'from-blue-500 to-cyan-500' },
-  { label: 'Doubting Myself', type: 'doubting_myself', emoji: '💭', gradient: 'from-purple-500 to-pink-500' },
+  { label: 'Doubting Myself', type: 'doubting', emoji: '💭', gradient: 'from-purple-500 to-pink-500' },
   { label: 'Overwhelmed', type: 'overwhelmed', emoji: '🌊', gradient: 'from-teal-500 to-emerald-500' },
-  { label: 'Lost Focus', type: 'lost_focus', emoji: '🎯', gradient: 'from-amber-500 to-yellow-500' },
+  { label: 'Lost Focus', type: 'unfocused', emoji: '🎯', gradient: 'from-amber-500 to-yellow-500' },
   { label: 'Motivation', type: 'motivation', emoji: '💪', gradient: 'from-green-500 to-lime-500' },
 ]
 
@@ -66,11 +66,11 @@ export function CoachPanel({ userId, currentTask, minutesElapsed, totalMinutes, 
     try {
       const result = await getCoachingHelp({
         userId,
-        helpType: type,
+        type,
         currentTask,
         additionalContext: additionalContext || undefined,
       })
-      setResponse(result.response)
+      setResponse(result.message)
       setContext('')
     } catch (error) {
       console.error('Coach request failed:', error)
