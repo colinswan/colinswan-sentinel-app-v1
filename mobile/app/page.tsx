@@ -14,7 +14,8 @@ export default function LandingPage() {
   }, []);
 
   const downloadLinks = {
-    mac: "https://github.com/colinswan/colinswan-sentinel-app-v1/releases/latest/download/Sentinel-mac.dmg",
+    mac: "https://github.com/colinswan/colinswan-sentinel-app-v1/releases/latest/download/Sentinel-mac-arm64.zip",
+    macIntel: "https://github.com/colinswan/colinswan-sentinel-app-v1/releases/latest/download/Sentinel-mac-x64.zip",
     windows: "https://github.com/colinswan/colinswan-sentinel-app-v1/releases/latest/download/Sentinel-win.exe",
     linux: "https://github.com/colinswan/colinswan-sentinel-app-v1/releases/latest/download/Sentinel-linux.AppImage",
   };
