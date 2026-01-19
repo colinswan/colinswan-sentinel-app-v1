@@ -37,6 +37,11 @@ export default defineConfig({
       alias: {
         '@': resolve(__dirname, 'src/renderer/src')
       }
+    },
+    define: {
+      'import.meta.env.VITE_CONVEX_URL': JSON.stringify(
+        process.env.VITE_CONVEX_URL || 'https://expert-ostrich-901.convex.cloud'
+      )
     }
   }
 })

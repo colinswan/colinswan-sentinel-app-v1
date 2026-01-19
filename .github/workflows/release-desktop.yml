@@ -29,6 +29,7 @@ jobs:
         run: npm run build:mac
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL }}
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
@@ -58,6 +59,7 @@ jobs:
         run: npm run build:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL }}
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
@@ -87,6 +89,7 @@ jobs:
         run: npm run build:linux
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL }}
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
