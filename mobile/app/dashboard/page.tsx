@@ -198,27 +198,27 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-3 gap-4">
                   <div className="text-center">
                     <p className="text-2xl font-bold text-zinc-100">
-                      {healthMetrics.currentSittingMins}m
+                      {healthMetrics.current.sittingMins}m
                     </p>
                     <p className="text-xs text-zinc-500">Current Sitting</p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-emerald-400">
-                      {healthMetrics.breaksToday}
+                      {healthMetrics.today.properBreaks}
                     </p>
                     <p className="text-xs text-zinc-500">Breaks Today</p>
                   </div>
                   <div className="text-center">
                     <p
                       className={`text-2xl font-bold ${
-                        healthMetrics.riskScore <= 30
+                        healthMetrics.current.dtvRiskScore <= 30
                           ? "text-emerald-400"
-                          : healthMetrics.riskScore <= 60
+                          : healthMetrics.current.dtvRiskScore <= 60
                             ? "text-amber-400"
                             : "text-red-400"
                       }`}
                     >
-                      {healthMetrics.riskScore}%
+                      {healthMetrics.current.dtvRiskScore}%
                     </p>
                     <p className="text-xs text-zinc-500">DVT Risk</p>
                   </div>
