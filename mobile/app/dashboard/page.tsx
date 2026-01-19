@@ -36,7 +36,7 @@ export default function DashboardPage() {
   );
 
   const isPaired = desktopDeviceId !== null;
-  const isLocked = desktopStatus?.status === "locked";
+  const isLocked = desktopStatus === "locked";
 
   return (
     <div className="min-h-screen flex flex-col p-6 bg-zinc-950">
