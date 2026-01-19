@@ -42,30 +42,29 @@
   "build": {
     "appId": "com.sentinel.desktop",
     "productName": "Sentinel",
+    "artifactName": "Sentinel-${os}.${ext}",
     "mac": {
       "target": [
         {
           "target": "dmg",
-          "arch": [
-            "universal"
-          ]
+          "arch": ["x64", "arm64"]
         }
       ],
       "identity": null,
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist"
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
     },
     "win": {
-      "target": [
-        "nsis"
-      ]
+      "target": ["nsis"],
+      "artifactName": "Sentinel-win.${ext}"
     },
     "linux": {
-      "target": [
-        "AppImage"
-      ]
+      "target": ["AppImage"],
+      "artifactName": "Sentinel-linux.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     },
     "directories": {
       "output": "dist"
