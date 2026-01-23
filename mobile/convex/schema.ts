@@ -7,6 +7,20 @@ export default defineSchema({
     workDurationMins: v.number(), // Default: 50
     breakDurationMins: v.number(), // Default: 10
     createdAt: v.number(),
+
+    // Meeting Mode - pauses timer enforcement
+    meetingModeUntil: v.optional(v.number()),      // Timestamp when meeting mode expires
+    defaultMeetingDurationMins: v.optional(v.number()), // Default: 60 minutes
+
+    // Smart Pause Settings
+    smartPauseMic: v.optional(v.boolean()),        // Pause when mic active
+    smartPauseScreenShare: v.optional(v.boolean()), // Pause when screen sharing
+    smartPauseTyping: v.optional(v.boolean()),     // Delay lock if typing
+
+    // Auto-start Settings
+    autoStartTimer: v.optional(v.boolean()),       // Auto-start timer when app opens (default: true)
+    autoStartDurationMins: v.optional(v.number()), // Duration for auto-started sessions (default: 60)
+    launchAtLogin: v.optional(v.boolean()),        // Launch app on system startup (default: true)
   }),
 
   devices: defineTable({
@@ -86,42 +100,66 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_user_active", ["userId", "isActive"]),
 
+  // Kanban columns - customizable columns per project
+  kanbanColumns: defineTable({
+    projectId: v.id("projects"),
+    userId: v.id("users"),
+
+    // Display
+    name: v.string(),                 // "To Do", "In Progress", "Done", or custom
+    emoji: v.optional(v.string()),    // Optional emoji icon
+    color: v.string(),                // Hex color for the column
+
+    // Ordering
+    order: v.number(),                // Position in the board (0, 1, 2, ...)
+
+    // Flags
+    isDefault: v.boolean(),           // Is this a default column (can't delete)
+    isCompleteColumn: v.boolean(),    // Tasks here count as "done"
+
+    createdAt: v.number(),
+  })
+    .index("by_project", ["projectId"])
+    .index("by_project_order", ["projectId", "order"]),
+
   // Tasks - Kanban items within projects
   tasks: defineTable({
     projectId: v.id("projects"),
     userId: v.id("users"),
-    
+    columnId: v.id("kanbanColumns"),  // Which column this task is in
+
     // Content
     title: v.string(),
     description: v.optional(v.string()),
-    
-    // Status (Kanban columns)
-    status: v.union(
+
+    // Legacy status field (for migration compatibility)
+    status: v.optional(v.union(
       v.literal("todo"),
       v.literal("in_progress"),
       v.literal("done")
-    ),
-    
+    )),
+
     // Priority
     priority: v.union(
       v.literal("low"),
       v.literal("medium"),
       v.literal("high")
     ),
-    
-    // Ordering within status column
+
+    // Ordering within column
     order: v.number(),
-    
+
     // Timestamps
     createdAt: v.number(),
     completedAt: v.optional(v.number()),
-    
+
     // Session tracking
     sessionsCount: v.number(),        // How many sessions worked on this
     totalMinutes: v.number(),         // Total time spent
   })
     .index("by_project", ["projectId"])
-    .index("by_project_status", ["projectId", "status"])
+    .index("by_column", ["columnId"])
+    .index("by_project_column", ["projectId", "columnId"])
     .index("by_user", ["userId"]),
 
   // Lock screen messages library

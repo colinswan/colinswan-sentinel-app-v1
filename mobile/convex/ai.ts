@@ -3,12 +3,14 @@ import { v } from "convex/values";
 import { api, internal } from "./_generated/api";
 
 // Build personalized system prompt based on user profile
-function buildMentorPrompt(profile: {
-  challenges?: string[];
-  motivationStyle?: string;
-  personalContext?: string;
-  bigPictureGoal?: string;
-} | null): string {
+function buildMentorPrompt(
+  profile: {
+    challenges?: string[];
+    motivationStyle?: string;
+    personalContext?: string;
+    bigPictureGoal?: string;
+  } | null,
+): string {
   // Base rules
   let prompt = `You are Sentinel, a productivity coach. Your job is to analyze what the user accomplished in their work session and give brief, direct feedback.
 
@@ -22,16 +24,16 @@ RULES:
 `;
 
   // Customize tone based on motivation style
-  if (profile?.motivationStyle === 'tough_love') {
+  if (profile?.motivationStyle === "tough_love") {
     prompt += `
 TONE: Direct and challenging. No sugarcoating. "Stop making excuses. Ship it." Push them hard but fairly.`;
-  } else if (profile?.motivationStyle === 'encouraging') {
+  } else if (profile?.motivationStyle === "encouraging") {
     prompt += `
 TONE: Warm and supportive. Celebrate wins enthusiastically. "You're doing great! Keep that momentum!" Be their cheerleader.`;
-  } else if (profile?.motivationStyle === 'analytical') {
+  } else if (profile?.motivationStyle === "analytical") {
     prompt += `
 TONE: Logical and framework-based. Explain the "why". "Here's why this approach works..." Give structured feedback.`;
-  } else if (profile?.motivationStyle === 'collaborative') {
+  } else if (profile?.motivationStyle === "collaborative") {
     prompt += `
 TONE: Partnership approach. "Let's figure this out together." Ask questions, suggest options, feel like a teammate.`;
   } else {
@@ -42,22 +44,22 @@ TONE: Balanced - firm but supportive. Think experienced mentor who believes in t
   // Add challenge-specific guidance
   if (profile?.challenges && profile.challenges.length > 0) {
     prompt += `\n\nUSER'S CHALLENGES (be sensitive to these):`;
-    if (profile.challenges.includes('imposter_syndrome')) {
+    if (profile.challenges.includes("imposter_syndrome")) {
       prompt += `\n- IMPOSTER SYNDROME: Remind them of their competence. "You built this. You belong here."`;
     }
-    if (profile.challenges.includes('perfectionism')) {
+    if (profile.challenges.includes("perfectionism")) {
       prompt += `\n- PERFECTIONISM: Emphasize "done > perfect". "Ship it ugly. Iterate later."`;
     }
-    if (profile.challenges.includes('procrastination')) {
+    if (profile.challenges.includes("procrastination")) {
       prompt += `\n- PROCRASTINATION: Focus on starting, not finishing. "What's the smallest next step?"`;
     }
-    if (profile.challenges.includes('decision_paralysis')) {
+    if (profile.challenges.includes("decision_paralysis")) {
       prompt += `\n- DECISION PARALYSIS: Make clear recommendations. "Do X. Don't overthink it."`;
     }
-    if (profile.challenges.includes('distraction')) {
+    if (profile.challenges.includes("distraction")) {
       prompt += `\n- DISTRACTION: Suggest environment changes. "Phone in another room next time."`;
     }
-    if (profile.challenges.includes('overwork')) {
+    if (profile.challenges.includes("overwork")) {
       prompt += `\n- OVERWORK: Celebrate taking breaks. "Rest is part of the process. Good job stepping away."`;
     }
   }
@@ -109,12 +111,20 @@ export const analyzeNote = action({
     userId: v.id("users"),
     taskGoal: v.optional(v.string()), // What they planned to work on
   },
-  handler: async (ctx, args): Promise<{ feedback: string; sentiment: "positive" | "neutral" | "needs_improvement" }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
+    feedback: string;
+    sentiment: "positive" | "neutral" | "needs_improvement";
+  }> => {
     const apiKey = process.env.OPENAI_API_KEY;
-    
+
     // Fetch user profile for personalization
-    const profile = await ctx.runQuery(api.userProfiles.get, { userId: args.userId });
-    
+    const profile = await ctx.runQuery(api.userProfiles.get, {
+      userId: args.userId,
+    });
+
     // If no API key, return a placeholder response
     if (!apiKey) {
       console.warn("No OPENAI_API_KEY set - returning placeholder feedback");
@@ -126,30 +136,35 @@ export const analyzeNote = action({
 
     try {
       // Build personalized prompt
-      const systemPrompt = profile ? buildMentorPrompt(profile) : DEFAULT_MENTOR_PROMPT;
-      
+      const systemPrompt = profile
+        ? buildMentorPrompt(profile)
+        : DEFAULT_MENTOR_PROMPT;
+
       // Build user message with task context
       let userMessage = `What did I accomplish? "${args.note}"`;
       if (args.taskGoal) {
         userMessage = `I planned to: "${args.taskGoal}"\nWhat I actually did: "${args.note}"`;
       }
 
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
+      const response = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userMessage },
+            ],
+            max_tokens: 150,
+            temperature: 0.7,
+          }),
         },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userMessage },
-          ],
-          max_tokens: 150,
-          temperature: 0.7,
-        }),
-      });
+      );
 
       if (!response.ok) {
         const error = await response.text();
@@ -161,15 +176,30 @@ export const analyzeNote = action({
       }
 
       const data = await response.json();
-      const feedback = data.choices[0]?.message?.content?.trim() || "Good work. Keep going.";
+      const feedback =
+        data.choices[0]?.message?.content?.trim() || "Good work. Keep going.";
 
       // Determine sentiment based on feedback content
       const lowerFeedback = feedback.toLowerCase();
       let sentiment: "positive" | "neutral" | "needs_improvement" = "neutral";
-      
-      if (lowerFeedback.includes("solid") || lowerFeedback.includes("good") || lowerFeedback.includes("great") || lowerFeedback.includes("nice") || lowerFeedback.includes("awesome") || lowerFeedback.includes("excellent")) {
+
+      if (
+        lowerFeedback.includes("solid") ||
+        lowerFeedback.includes("good") ||
+        lowerFeedback.includes("great") ||
+        lowerFeedback.includes("nice") ||
+        lowerFeedback.includes("awesome") ||
+        lowerFeedback.includes("excellent")
+      ) {
         sentiment = "positive";
-      } else if (lowerFeedback.includes("honest") || lowerFeedback.includes("vague") || lowerFeedback.includes("avoid") || lowerFeedback.includes("distract") || lowerFeedback.includes("try") || lowerFeedback.includes("next time")) {
+      } else if (
+        lowerFeedback.includes("honest") ||
+        lowerFeedback.includes("vague") ||
+        lowerFeedback.includes("avoid") ||
+        lowerFeedback.includes("distract") ||
+        lowerFeedback.includes("try") ||
+        lowerFeedback.includes("next time")
+      ) {
         sentiment = "needs_improvement";
       }
 
@@ -221,14 +251,14 @@ EXAMPLES:
 // IN-SESSION AI COACH
 // ============================================
 
-type CoachingType = 
-  | "procrastinating"    // Help them start
-  | "stuck"              // Help break down the problem
-  | "doubting"           // Counter imposter syndrome
-  | "overwhelmed"        // Help simplify
-  | "unfocused"          // Refocus on goal
-  | "motivation"         // Generic motivation boost
-  | "checkin";           // Proactive check-in
+type CoachingType =
+  | "procrastinating" // Help them start
+  | "stuck" // Help break down the problem
+  | "doubting" // Counter imposter syndrome
+  | "overwhelmed" // Help simplify
+  | "unfocused" // Refocus on goal
+  | "motivation" // Generic motivation boost
+  | "checkin"; // Proactive check-in
 
 // Build coaching prompt based on type and user profile
 function buildCoachingPrompt(
@@ -238,17 +268,17 @@ function buildCoachingPrompt(
     motivationStyle?: string;
     personalContext?: string;
     bigPictureGoal?: string;
-  } | null
+  } | null,
 ): string {
   // Base personality
   let tone = "supportive but direct";
-  if (profile?.motivationStyle === 'tough_love') {
+  if (profile?.motivationStyle === "tough_love") {
     tone = "firm and challenging - no sugarcoating, push them hard";
-  } else if (profile?.motivationStyle === 'encouraging') {
+  } else if (profile?.motivationStyle === "encouraging") {
     tone = "warm and enthusiastic - be their cheerleader";
-  } else if (profile?.motivationStyle === 'analytical') {
+  } else if (profile?.motivationStyle === "analytical") {
     tone = "logical and structured - explain the why";
-  } else if (profile?.motivationStyle === 'collaborative') {
+  } else if (profile?.motivationStyle === "collaborative") {
     tone = "like a teammate - 'let's figure this out together'";
   }
 
@@ -264,7 +294,7 @@ The user is procrastinating and struggling to start. Help them take the FIRST ti
 - Make it so small it's impossible to refuse
 - End with "Go. Now."
 
-${profile?.challenges?.includes('procrastination') ? "They struggle with procrastination regularly - be understanding but firm." : ""}`,
+${profile?.challenges?.includes("procrastination") ? "They struggle with procrastination regularly - be understanding but firm." : ""}`,
 
     stuck: `${basePrompt}
 
@@ -273,7 +303,7 @@ The user is stuck on their task. Help them break through.
 - Suggest: rubber duck debugging, working backwards, or taking a different angle
 - Don't give generic advice
 
-${profile?.challenges?.includes('decision_paralysis') ? "They have decision paralysis - make a clear recommendation, don't give options." : ""}`,
+${profile?.challenges?.includes("decision_paralysis") ? "They have decision paralysis - make a clear recommendation, don't give options." : ""}`,
 
     doubting: `${basePrompt}
 
@@ -293,7 +323,7 @@ The user feels overwhelmed. Help them simplify.
 - Suggest parking everything else mentally
 - "What's the one thing that, if done, makes everything else easier?"
 
-${profile?.challenges?.includes('perfectionism') ? "They're a perfectionist - remind them 'done > perfect'." : ""}`,
+${profile?.challenges?.includes("perfectionism") ? "They're a perfectionist - remind them 'done > perfect'." : ""}`,
 
     unfocused: `${basePrompt}
 
@@ -323,7 +353,7 @@ This is a proactive check-in during their work session.
   };
 
   let prompt = prompts[type];
-  
+
   // Add personal context if available
   if (profile?.personalContext) {
     prompt += `\n\nPersonal context about user: ${profile.personalContext}`;
@@ -342,70 +372,92 @@ export const getCoachingHelp = action({
       v.literal("doubting"),
       v.literal("overwhelmed"),
       v.literal("unfocused"),
-      v.literal("motivation")
+      v.literal("motivation"),
     ),
-    currentTask: v.optional(v.string()),      // What they're working on
-    projectId: v.optional(v.id("projects")),  // Current project for context
+    currentTask: v.optional(v.string()), // What they're working on
+    projectId: v.optional(v.id("projects")), // Current project for context
     additionalContext: v.optional(v.string()), // Any extra context they provide
-    timeInSession: v.optional(v.number()),     // Minutes into current session
+    timeInSession: v.optional(v.number()), // Minutes into current session
   },
-  handler: async (ctx, args): Promise<{ message: string; followUp?: string }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ message: string; followUp?: string }> => {
     const apiKey = process.env.OPENAI_API_KEY;
-    
+
     // Get user profile
-    const profile = await ctx.runQuery(api.userProfiles.get, { userId: args.userId });
-    
+    const profile = await ctx.runQuery(api.userProfiles.get, {
+      userId: args.userId,
+    });
+
     // Fallback responses if no API key
     const fallbacks: Record<string, { message: string; followUp?: string }> = {
-      procrastinating: { 
-        message: "Open the file. Just look at it. That's step one. Go.", 
-        followUp: "What's the tiniest thing you can do right now?" 
+      procrastinating: {
+        message: "Open the file. Just look at it. That's step one. Go.",
+        followUp: "What's the tiniest thing you can do right now?",
       },
-      stuck: { 
-        message: "Try explaining the problem out loud, like you're teaching someone. Often the answer appears.", 
-        followUp: "What specifically is blocking you?" 
+      stuck: {
+        message:
+          "Try explaining the problem out loud, like you're teaching someone. Often the answer appears.",
+        followUp: "What specifically is blocking you?",
       },
-      doubting: { 
-        message: "Imposter syndrome hits hardest when you're growing. That discomfort? It means you're leveling up. You belong here.", 
+      doubting: {
+        message:
+          "Imposter syndrome hits hardest when you're growing. That discomfort? It means you're leveling up. You belong here.",
       },
-      overwhelmed: { 
-        message: "Pause. Breathe. What's the ONE thing that matters most right now? Everything else can wait.", 
-        followUp: "Let's simplify: what's your single priority?" 
+      overwhelmed: {
+        message:
+          "Pause. Breathe. What's the ONE thing that matters most right now? Everything else can wait.",
+        followUp: "Let's simplify: what's your single priority?",
       },
-      unfocused: { 
-        message: "It happens. Take a breath, state your goal out loud, and dive back in. You've got this.", 
+      unfocused: {
+        message:
+          "It happens. Take a breath, state your goal out loud, and dive back in. You've got this.",
       },
-      motivation: { 
-        message: "You're in the arena. Most people never even start. Keep pushing—you're closer than you think.", 
+      motivation: {
+        message:
+          "You're in the arena. Most people never even start. Keep pushing—you're closer than you think.",
       },
     };
 
     if (!apiKey) {
-      return fallbacks[args.type] || { message: "Keep going. You've got this." };
+      return (
+        fallbacks[args.type] || { message: "Keep going. You've got this." }
+      );
     }
 
     try {
       const systemPrompt = buildCoachingPrompt(args.type, profile);
-      
+
       // Get project context if available
       let projectContext = "";
       if (args.projectId) {
-        const project = await ctx.runQuery(api.projects.get, { projectId: args.projectId });
+        const project = await ctx.runQuery(api.projects.get, {
+          projectId: args.projectId,
+        });
         if (project) {
-          projectContext = `\n\nPROJECT: "${project.name}"${project.goal ? ` - Goal: ${project.goal}` : ''}`;
-          if (project.coachingMode === 'ship_fast') {
-            projectContext += '\n(HIGH URGENCY - user is in ship-fast mode)';
+          projectContext = `\n\nPROJECT: "${project.name}"${project.goal ? ` - Goal: ${project.goal}` : ""}`;
+          if (project.coachingMode === "ship_fast") {
+            projectContext += "\n(HIGH URGENCY - user is in ship-fast mode)";
           }
         }
       }
-      
+
       // Build user message with context
-      let userMessage = `I'm ${args.type === 'procrastinating' ? 'procrastinating' : 
-        args.type === 'stuck' ? 'stuck' : 
-        args.type === 'doubting' ? 'doubting myself' :
-        args.type === 'overwhelmed' ? 'feeling overwhelmed' :
-        args.type === 'unfocused' ? 'having trouble focusing' : 'needing motivation'}.`;
-      
+      let userMessage = `I'm ${
+        args.type === "procrastinating"
+          ? "procrastinating"
+          : args.type === "stuck"
+            ? "stuck"
+            : args.type === "doubting"
+              ? "doubting myself"
+              : args.type === "overwhelmed"
+                ? "feeling overwhelmed"
+                : args.type === "unfocused"
+                  ? "having trouble focusing"
+                  : "needing motivation"
+      }.`;
+
       if (args.currentTask) {
         userMessage += `\n\nI'm supposed to be working on: "${args.currentTask}"`;
       }
@@ -421,23 +473,26 @@ export const getCoachingHelp = action({
 
       // Use higher temperature when user provides more context (for varied responses)
       const temperature = args.additionalContext ? 0.95 : 0.8;
-      
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
+
+      const response = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userMessage },
+            ],
+            max_tokens: 120, // Slightly more for detailed responses
+            temperature,
+          }),
         },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userMessage },
-          ],
-          max_tokens: 120, // Slightly more for detailed responses
-          temperature,
-        }),
-      });
+      );
 
       if (!response.ok) {
         console.error("OpenAI API error:", await response.text());
@@ -445,12 +500,17 @@ export const getCoachingHelp = action({
       }
 
       const data = await response.json();
-      const message = data.choices[0]?.message?.content?.trim() || fallbacks[args.type]?.message || "Keep going.";
+      const message =
+        data.choices[0]?.message?.content?.trim() ||
+        fallbacks[args.type]?.message ||
+        "Keep going.";
 
       return { message };
     } catch (error) {
       console.error("AI coaching error:", error);
-      return fallbacks[args.type] || { message: "Stay focused. You've got this." };
+      return (
+        fallbacks[args.type] || { message: "Stay focused. You've got this." }
+      );
     }
   },
 });
@@ -463,29 +523,43 @@ export const getProactiveCheckIn = action({
     minutesElapsed: v.number(),
     totalMinutes: v.number(),
   },
-  handler: async (ctx, args): Promise<{ message: string; showHelp: boolean }> => {
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{ message: string; showHelp: boolean }> => {
     const apiKey = process.env.OPENAI_API_KEY;
-    const profile = await ctx.runQuery(api.userProfiles.get, { userId: args.userId });
-    
+    const profile = await ctx.runQuery(api.userProfiles.get, {
+      userId: args.userId,
+    });
+
     // Calculate progress
-    const progress = Math.round((args.minutesElapsed / args.totalMinutes) * 100);
+    const progress = Math.round(
+      (args.minutesElapsed / args.totalMinutes) * 100,
+    );
     const isHalfway = progress >= 45 && progress <= 55;
     const isNearEnd = progress >= 80;
-    
+
     // Fallback messages
     if (!apiKey) {
       if (isNearEnd) {
-        return { message: "Almost there! Final push. What can you finish before time's up?", showHelp: false };
+        return {
+          message:
+            "Almost there! Final push. What can you finish before time's up?",
+          showHelp: false,
+        };
       }
       if (isHalfway) {
-        return { message: "Halfway through! How's it going? Need help with anything?", showHelp: true };
+        return {
+          message: "Halfway through! How's it going? Need help with anything?",
+          showHelp: true,
+        };
       }
       return { message: "Quick check: Still on track?", showHelp: true };
     }
 
     try {
       const systemPrompt = buildCoachingPrompt("checkin", profile);
-      
+
       let userMessage = `${args.minutesElapsed} minutes into a ${args.totalMinutes}-minute session (${progress}% done).`;
       if (args.currentTask) {
         userMessage += `\nWorking on: "${args.currentTask}"`;
@@ -496,29 +570,33 @@ export const getProactiveCheckIn = action({
         userMessage += "\nHalfway point - good time to check in.";
       }
 
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
+      const response = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userMessage },
+            ],
+            max_tokens: 60,
+            temperature: 0.7,
+          }),
         },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userMessage },
-          ],
-          max_tokens: 60,
-          temperature: 0.7,
-        }),
-      });
+      );
 
       if (!response.ok) {
         return { message: "How's it going? Need any help?", showHelp: true };
       }
 
       const data = await response.json();
-      const message = data.choices[0]?.message?.content?.trim() || "Still on track?";
+      const message =
+        data.choices[0]?.message?.content?.trim() || "Still on track?";
 
       return { message, showHelp: !isNearEnd };
     } catch (error) {
@@ -540,88 +618,120 @@ export const suggestTask = action({
   },
   handler: async (ctx, args): Promise<{ task: string; reasoning?: string }> => {
     const apiKey = process.env.OPENAI_API_KEY;
-    
+
     // Get recent sessions for context
-    const recentSessions = await ctx.runQuery(api.sessions.listByUser, { 
-      userId: args.userId, 
-      limit: 5 
+    const recentSessions = await ctx.runQuery(api.sessions.listByUser, {
+      userId: args.userId,
+      limit: 5,
     });
-    
+
     // Get project context if provided
     let projectContext = "";
-    let projectTasks: { title: string; status: string; priority: string }[] = [];
-    
+    let projectTasks: { title: string; status: string; priority: string }[] =
+      [];
+
     if (args.projectId) {
-      const project = await ctx.runQuery(api.projects.get, { projectId: args.projectId });
+      const project = await ctx.runQuery(api.projects.get, {
+        projectId: args.projectId,
+      });
       if (project) {
         projectContext = `
 PROJECT: ${project.name}
-${project.goal ? `GOAL: ${project.goal}` : ''}
+${project.goal ? `GOAL: ${project.goal}` : ""}
 MODE: ${project.coachingMode}`;
-        
-        // Get tasks for this project
-        const tasks = await ctx.runQuery(api.tasks.listByProjectFlat, { projectId: args.projectId });
-        projectTasks = tasks.map(t => ({ title: t.title, status: t.status, priority: t.priority }));
+
+        // Get tasks and columns for this project
+        const tasks = await ctx.runQuery(api.tasks.listByProjectFlat, {
+          projectId: args.projectId,
+        });
+        const columns = await ctx.runQuery(api.kanbanColumns.listByProject, {
+          projectId: args.projectId,
+        });
+
+        // Build a map of columnId -> status based on column properties
+        const columnStatusMap = new Map<string, string>();
+        for (const col of columns) {
+          if (col.isCompleteColumn) {
+            columnStatusMap.set(col._id, "done");
+          } else if (col.name === "In Progress" || col.order === 1) {
+            columnStatusMap.set(col._id, "in_progress");
+          } else {
+            columnStatusMap.set(col._id, "todo");
+          }
+        }
+
+        projectTasks = tasks.map((t) => ({
+          title: t.title,
+          status: columnStatusMap.get(t.columnId) || "todo",
+          priority: t.priority,
+        }));
       }
     }
-    
+
     // Build context from recent sessions
     const recentWork = recentSessions
-      .filter(s => s.taskDescription || s.userNotes)
-      .map(s => {
+      .filter((s) => s.taskDescription || s.userNotes)
+      .map((s) => {
         const task = s.taskDescription || "Unknown task";
         const outcome = s.userNotes || "No notes";
         const completed = s.didUnlockProperly ? "completed" : "incomplete";
         return `- ${task} (${completed}): ${outcome}`;
       })
       .join("\n");
-    
+
     // Get time of day for context
     const hour = new Date().getHours();
-    const timeContext = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
-    
+    const timeContext =
+      hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
+
     // If no API key, suggest from project tasks
     if (!apiKey) {
-      const inProgress = projectTasks.find(t => t.status === 'in_progress');
+      const inProgress = projectTasks.find((t) => t.status === "in_progress");
       if (inProgress) return { task: inProgress.title };
-      
-      const highPriority = projectTasks.find(t => t.status === 'todo' && t.priority === 'high');
+
+      const highPriority = projectTasks.find(
+        (t) => t.status === "todo" && t.priority === "high",
+      );
       if (highPriority) return { task: highPriority.title };
-      
-      const anyTodo = projectTasks.find(t => t.status === 'todo');
+
+      const anyTodo = projectTasks.find((t) => t.status === "todo");
       if (anyTodo) return { task: anyTodo.title };
-      
+
       return { task: "Pick your most important task and start" };
     }
 
     try {
       // Build task list for AI
-      const taskList = projectTasks.length > 0
-        ? `\nPROJECT TASKS:\n${projectTasks.map(t => `- [${t.status}] ${t.title} (${t.priority})`).join('\n')}`
-        : '';
-      
-      let userMessage = projectContext 
-        ? `${projectContext}${taskList}\n\nRecent work:\n${recentWork || 'No recent sessions'}\n\nIt's ${timeContext}. What should I focus on next?`
-        : (recentWork 
-            ? `Recent work:\n${recentWork}\n\nIt's ${timeContext}. What should I focus on next?`
-            : `It's ${timeContext} and I'm starting fresh. What should I focus on?`);
+      const taskList =
+        projectTasks.length > 0
+          ? `\nPROJECT TASKS:\n${projectTasks.map((t) => `- [${t.status}] ${t.title} (${t.priority})`).join("\n")}`
+          : "";
 
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
+      let userMessage = projectContext
+        ? `${projectContext}${taskList}\n\nRecent work:\n${recentWork || "No recent sessions"}\n\nIt's ${timeContext}. What should I focus on next?`
+        : recentWork
+          ? `Recent work:\n${recentWork}\n\nIt's ${timeContext}. What should I focus on next?`
+          : `It's ${timeContext} and I'm starting fresh. What should I focus on?`;
+
+      const response = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: TASK_SUGGESTER_PROMPT },
+              { role: "user", content: userMessage },
+            ],
+            max_tokens: 50,
+            temperature: 0.7,
+          }),
         },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: TASK_SUGGESTER_PROMPT },
-            { role: "user", content: userMessage },
-          ],
-          max_tokens: 50,
-          temperature: 0.7,
-        }),
-      });
+      );
 
       if (!response.ok) {
         console.error("OpenAI API error:", await response.text());
@@ -629,7 +739,9 @@ MODE: ${project.coachingMode}`;
       }
 
       const data = await response.json();
-      const task = data.choices[0]?.message?.content?.trim() || "Focus on what matters most";
+      const task =
+        data.choices[0]?.message?.content?.trim() ||
+        "Focus on what matters most";
 
       return { task };
     } catch (error) {

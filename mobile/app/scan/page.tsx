@@ -11,8 +11,10 @@ import Link from "next/link";
 const CHECKPOINT_PREFIX = "sentinel-checkpoint-";
 const MIN_NOTE_LENGTH = 10;
 const SUCCESS_DISPLAY_TIME = 5000; // 5 seconds to read while walking back
+const DEFAULT_CALF_RAISES = 15;
 
 type ScanState = "scanning" | "accountability" | "analyzing" | "feedback" | "success" | "error";
+type TaskStatus = "done" | "in_progress" | "blocked";
 
 interface AIFeedback {
   feedback: string;
@@ -30,6 +32,10 @@ export default function ScanPage() {
   const [accountabilityNote, setAccountabilityNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiFeedback, setAiFeedback] = useState<AIFeedback | null>(null);
+
+  // Unlock gating state
+  const [taskStatus, setTaskStatus] = useState<TaskStatus | null>(null);
+  const [physicalChallengeComplete, setPhysicalChallengeComplete] = useState(false);
 
   const unlock = useMutation(api.devices.unlock);
   const analyzeNote = useAction(api.ai.analyzeNote);
@@ -265,10 +271,10 @@ export default function ScanPage() {
         {scanState === "accountability" && (
           <div className="w-full max-w-sm">
             {/* Success indicator */}
-            <div className="flex justify-center mb-6">
-              <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center">
+            <div className="flex justify-center mb-4">
+              <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center">
                 <svg
-                  className="w-8 h-8 text-green-500"
+                  className="w-7 h-7 text-green-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -283,46 +289,126 @@ export default function ScanPage() {
               </div>
             </div>
 
-            <h2 className="text-xl font-bold text-zinc-100 text-center mb-2">
+            <h2 className="text-xl font-bold text-zinc-100 text-center mb-1">
               Checkpoint Verified ✓
             </h2>
-            <p className="text-zinc-400 text-center mb-6">
-              One more thing before unlocking...
+            <p className="text-zinc-400 text-center text-sm mb-5">
+              Complete these steps to unlock
             </p>
 
-            {/* Accountability Question */}
-            <div className="bg-zinc-900 rounded-2xl p-5 border border-zinc-800 mb-4">
+            {/* Step 1: Task Status */}
+            <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800 mb-3">
               <label className="block text-sm font-medium text-amber-400 mb-3">
-                🎯 What did you accomplish this session?
+                1️⃣ How did your session go?
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => setTaskStatus("done")}
+                  className={`py-3 px-2 rounded-xl text-sm font-medium transition-all ${
+                    taskStatus === "done"
+                      ? "bg-green-500/20 border-2 border-green-500 text-green-400"
+                      : "bg-zinc-800 border-2 border-zinc-700 text-zinc-400 hover:border-zinc-600"
+                  }`}
+                >
+                  ✓ Done
+                </button>
+                <button
+                  onClick={() => setTaskStatus("in_progress")}
+                  className={`py-3 px-2 rounded-xl text-sm font-medium transition-all ${
+                    taskStatus === "in_progress"
+                      ? "bg-amber-500/20 border-2 border-amber-500 text-amber-400"
+                      : "bg-zinc-800 border-2 border-zinc-700 text-zinc-400 hover:border-zinc-600"
+                  }`}
+                >
+                  ⏳ Progress
+                </button>
+                <button
+                  onClick={() => setTaskStatus("blocked")}
+                  className={`py-3 px-2 rounded-xl text-sm font-medium transition-all ${
+                    taskStatus === "blocked"
+                      ? "bg-red-500/20 border-2 border-red-500 text-red-400"
+                      : "bg-zinc-800 border-2 border-zinc-700 text-zinc-400 hover:border-zinc-600"
+                  }`}
+                >
+                  🚧 Blocked
+                </button>
+              </div>
+            </div>
+
+            {/* Step 2: What you accomplished */}
+            <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800 mb-3">
+              <label className="block text-sm font-medium text-amber-400 mb-2">
+                2️⃣ {taskStatus === "blocked" ? "What blocked you?" : "What did you accomplish?"}
               </label>
               <textarea
                 value={accountabilityNote}
                 onChange={(e) => setAccountabilityNote(e.target.value)}
-                placeholder="e.g., Finished the login flow, Fixed 3 bugs, Wrote documentation..."
-                rows={3}
-                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-xl text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500 resize-none"
-                autoFocus
+                placeholder={
+                  taskStatus === "blocked"
+                    ? "e.g., Stuck on API integration, need help with..."
+                    : "e.g., Finished login flow, Fixed 3 bugs..."
+                }
+                rows={2}
+                className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-xl text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500 resize-none text-sm"
               />
-              <div className="flex justify-between mt-2">
+              <div className="flex justify-between mt-1">
                 <span className="text-xs text-zinc-500">
                   {accountabilityNote.length < MIN_NOTE_LENGTH
-                    ? `${MIN_NOTE_LENGTH - accountabilityNote.length} more characters needed`
-                    : "✓ Ready to submit"}
-                </span>
-                <span className="text-xs text-zinc-600">
-                  {accountabilityNote.length} chars
+                    ? `${MIN_NOTE_LENGTH - accountabilityNote.length} more chars`
+                    : "✓"}
                 </span>
               </div>
+            </div>
+
+            {/* Step 3: Physical Challenge */}
+            <div className="bg-zinc-900 rounded-2xl p-4 border border-zinc-800 mb-4">
+              <label className="block text-sm font-medium text-amber-400 mb-3">
+                3️⃣ Movement Challenge
+              </label>
+              <button
+                onClick={() => setPhysicalChallengeComplete(!physicalChallengeComplete)}
+                className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
+                  physicalChallengeComplete
+                    ? "bg-green-500/20 border-2 border-green-500"
+                    : "bg-zinc-800 border-2 border-zinc-700 hover:border-zinc-600"
+                }`}
+              >
+                <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  physicalChallengeComplete
+                    ? "bg-green-500"
+                    : "bg-zinc-700 border border-zinc-600"
+                }`}>
+                  {physicalChallengeComplete && (
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                <div className="text-left flex-1">
+                  <p className={`text-sm font-medium ${physicalChallengeComplete ? "text-green-400" : "text-zinc-300"}`}>
+                    I completed {DEFAULT_CALF_RAISES} calf raises
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    Helps blood flow & prevents DVT
+                  </p>
+                </div>
+                {physicalChallengeComplete && (
+                  <span className="text-green-400 text-lg">💪</span>
+                )}
+              </button>
             </div>
 
             {/* Submit Button */}
             <button
               onClick={handleSubmitAccountability}
               disabled={
-                accountabilityNote.length < MIN_NOTE_LENGTH || isSubmitting
+                !taskStatus ||
+                accountabilityNote.length < MIN_NOTE_LENGTH ||
+                !physicalChallengeComplete ||
+                isSubmitting
               }
               className={`w-full py-4 px-6 rounded-xl font-semibold text-center transition-colors mb-3 ${
-                accountabilityNote.length >= MIN_NOTE_LENGTH && !isSubmitting
+                taskStatus && accountabilityNote.length >= MIN_NOTE_LENGTH && physicalChallengeComplete && !isSubmitting
                   ? "bg-green-600 hover:bg-green-500 text-white"
                   : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
               }`}
@@ -351,7 +437,12 @@ export default function ScanPage() {
                   Analyzing...
                 </span>
               ) : (
-                "Submit & Get Feedback"
+                <>
+                  {!taskStatus && "Select session status"}
+                  {taskStatus && accountabilityNote.length < MIN_NOTE_LENGTH && "Add more details"}
+                  {taskStatus && accountabilityNote.length >= MIN_NOTE_LENGTH && !physicalChallengeComplete && "Complete calf raises"}
+                  {taskStatus && accountabilityNote.length >= MIN_NOTE_LENGTH && physicalChallengeComplete && "Submit & Unlock"}
+                </>
               )}
             </button>
 
@@ -361,7 +452,7 @@ export default function ScanPage() {
               disabled={isSubmitting}
               className="w-full py-2 text-zinc-600 text-sm hover:text-zinc-400 transition-colors"
             >
-              Skip this time
+              Emergency skip (logged)
             </button>
           </div>
         )}

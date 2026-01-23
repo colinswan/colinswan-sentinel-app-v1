@@ -19,7 +19,7 @@ export const get = query({
   },
 });
 
-// Get lock info (status + message) - Desktop subscribes to this
+// Get lock info (status + message + meeting mode) - Desktop subscribes to this
 export const getLockInfo = query({
   args: { deviceId: v.id("devices") },
   handler: async (ctx, args) => {
@@ -33,10 +33,22 @@ export const getLockInfo = query({
       currentTask = session?.taskDescription;
     }
 
+    // Get meeting mode status
+    const user = await ctx.db.get(device.userId);
+    const now = Date.now();
+    const meetingModeUntil = user?.meetingModeUntil;
+    const isMeetingModeActive = meetingModeUntil ? meetingModeUntil > now : false;
+    const meetingModeRemainingMins = isMeetingModeActive && meetingModeUntil
+      ? Math.ceil((meetingModeUntil - now) / 60000)
+      : null;
+
     return {
       status: device.status,
       lockMessage: device.lockMessage,
       currentTask,
+      isMeetingModeActive,
+      meetingModeUntil: isMeetingModeActive ? meetingModeUntil : null,
+      meetingModeRemainingMins,
     };
   },
 });
@@ -64,6 +76,27 @@ export const getDesktopForUser = query({
   },
 });
 
+// Get setup status - check if user has mobile device paired
+export const getSetupStatus = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const devices = await ctx.db
+      .query("devices")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    const hasDesktop = devices.some((d) => d.deviceType === "desktop");
+    const hasMobile = devices.some((d) => d.deviceType === "mobile");
+
+    return {
+      hasDesktop,
+      hasMobile,
+      isFullySetup: hasDesktop && hasMobile,
+      deviceCount: devices.length,
+    };
+  },
+});
+
 // Create a new device
 export const create = mutation({
   args: {
@@ -88,10 +121,23 @@ export const lock = mutation({
   args: {
     deviceId: v.id("devices"),
     message: v.optional(v.string()),
+    force: v.optional(v.boolean()), // Force lock even if meeting mode is active
   },
   handler: async (ctx, args) => {
     const device = await ctx.db.get(args.deviceId);
     if (!device) throw new Error("Device not found");
+
+    // Check if meeting mode is active (unless force is true)
+    if (!args.force) {
+      const user = await ctx.db.get(device.userId);
+      if (user?.meetingModeUntil && user.meetingModeUntil > Date.now()) {
+        return {
+          success: false,
+          reason: "meeting_mode_active",
+          meetingModeUntil: user.meetingModeUntil,
+        };
+      }
+    }
 
     // Get a random message if none provided
     let lockMessage = args.message;
