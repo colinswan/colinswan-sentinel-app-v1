@@ -33,12 +33,32 @@ export const updateSettings = mutation({
     userId: v.id("users"),
     workDurationMins: v.optional(v.number()),
     breakDurationMins: v.optional(v.number()),
+    defaultMeetingDurationMins: v.optional(v.number()),
+    smartPauseMic: v.optional(v.boolean()),
+    smartPauseScreenShare: v.optional(v.boolean()),
+    smartPauseTyping: v.optional(v.boolean()),
+    autoStartTimer: v.optional(v.boolean()),
+    autoStartDurationMins: v.optional(v.number()),
+    launchAtLogin: v.optional(v.boolean()),
+    preLockCountdownSecs: v.optional(v.number()),
+    calfRaisesCount: v.optional(v.number()),
+    enforceBreakDuration: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const { userId, ...updates } = args;
     const filteredUpdates: Partial<{
       workDurationMins: number;
       breakDurationMins: number;
+      defaultMeetingDurationMins: number;
+      smartPauseMic: boolean;
+      smartPauseScreenShare: boolean;
+      smartPauseTyping: boolean;
+      autoStartTimer: boolean;
+      autoStartDurationMins: number;
+      launchAtLogin: boolean;
+      preLockCountdownSecs: number;
+      calfRaisesCount: number;
+      enforceBreakDuration: boolean;
     }> = {};
 
     if (updates.workDurationMins !== undefined) {
@@ -47,8 +67,100 @@ export const updateSettings = mutation({
     if (updates.breakDurationMins !== undefined) {
       filteredUpdates.breakDurationMins = updates.breakDurationMins;
     }
+    if (updates.defaultMeetingDurationMins !== undefined) {
+      filteredUpdates.defaultMeetingDurationMins = updates.defaultMeetingDurationMins;
+    }
+    if (updates.smartPauseMic !== undefined) {
+      filteredUpdates.smartPauseMic = updates.smartPauseMic;
+    }
+    if (updates.smartPauseScreenShare !== undefined) {
+      filteredUpdates.smartPauseScreenShare = updates.smartPauseScreenShare;
+    }
+    if (updates.smartPauseTyping !== undefined) {
+      filteredUpdates.smartPauseTyping = updates.smartPauseTyping;
+    }
+    if (updates.autoStartTimer !== undefined) {
+      filteredUpdates.autoStartTimer = updates.autoStartTimer;
+    }
+    if (updates.autoStartDurationMins !== undefined) {
+      filteredUpdates.autoStartDurationMins = updates.autoStartDurationMins;
+    }
+    if (updates.launchAtLogin !== undefined) {
+      filteredUpdates.launchAtLogin = updates.launchAtLogin;
+    }
+    if (updates.preLockCountdownSecs !== undefined) {
+      filteredUpdates.preLockCountdownSecs = updates.preLockCountdownSecs;
+    }
+    if (updates.calfRaisesCount !== undefined) {
+      filteredUpdates.calfRaisesCount = updates.calfRaisesCount;
+    }
+    if (updates.enforceBreakDuration !== undefined) {
+      filteredUpdates.enforceBreakDuration = updates.enforceBreakDuration;
+    }
 
     await ctx.db.patch(userId, filteredUpdates);
     return await ctx.db.get(userId);
+  },
+});
+
+// ============================================================================
+// Meeting Mode
+// ============================================================================
+
+// Enable meeting mode for a duration
+export const enableMeetingMode = mutation({
+  args: {
+    userId: v.id("users"),
+    durationMins: v.optional(v.number()), // If not provided, uses user's default
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) throw new Error("User not found");
+
+    const durationMins = args.durationMins ?? user.defaultMeetingDurationMins ?? 60;
+    const meetingModeUntil = Date.now() + durationMins * 60 * 1000;
+
+    await ctx.db.patch(args.userId, { meetingModeUntil });
+    return { meetingModeUntil, durationMins };
+  },
+});
+
+// Disable meeting mode
+export const disableMeetingMode = mutation({
+  args: {
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.userId, { meetingModeUntil: undefined });
+    return { success: true };
+  },
+});
+
+// Check if meeting mode is active
+export const getMeetingModeStatus = query({
+  args: {
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) return { isActive: false, expiresAt: null, remainingMins: null };
+
+    const meetingModeUntil = user.meetingModeUntil;
+    if (!meetingModeUntil) {
+      return { isActive: false, expiresAt: null, remainingMins: null };
+    }
+
+    const now = Date.now();
+    if (meetingModeUntil <= now) {
+      // Meeting mode has expired
+      return { isActive: false, expiresAt: null, remainingMins: null };
+    }
+
+    const remainingMins = Math.ceil((meetingModeUntil - now) / 60000);
+    return {
+      isActive: true,
+      expiresAt: meetingModeUntil,
+      remainingMins,
+    };
   },
 });

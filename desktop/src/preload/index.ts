@@ -9,7 +9,13 @@ const sentinelAPI = {
   getLockedState: (): Promise<{ isLocked: boolean }> => ipcRenderer.invoke('get-locked-state'),
   getDeviceId: (): Promise<{ deviceId: string }> => ipcRenderer.invoke('get-device-id'),
   isDevMode: (): Promise<{ isDev: boolean }> => ipcRenderer.invoke('is-dev-mode'),
-  
+
+  // Pre-lock countdown overlay
+  showCountdownOverlay: (seconds: number): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('show-countdown-overlay', seconds),
+  hideCountdownOverlay: (): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('hide-countdown-overlay'),
+
   // Listen for emergency unlock from main process
   onEmergencyUnlock: (callback: () => void) => {
     ipcRenderer.on('emergency-unlock', callback)

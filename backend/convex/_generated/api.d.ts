@@ -10,6 +10,7 @@
 
 import type * as ai from "../ai.js";
 import type * as devices from "../devices.js";
+import type * as kanbanColumns from "../kanbanColumns.js";
 import type * as messages from "../messages.js";
 import type * as pairing from "../pairing.js";
 import type * as projects from "../projects.js";
@@ -27,6 +28,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   devices: typeof devices;
+  kanbanColumns: typeof kanbanColumns;
   messages: typeof messages;
   pairing: typeof pairing;
   projects: typeof projects;

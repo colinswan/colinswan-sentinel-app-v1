@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { DEFAULT_COLUMNS } from "./kanbanColumns";
 
 // Default project colors
 const PROJECT_COLORS = [
@@ -119,7 +120,22 @@ export const create = mutation({
       isArchived: false,
       createdAt: Date.now(),
     });
-    
+
+    // Seed default kanban columns for this project
+    for (const col of DEFAULT_COLUMNS) {
+      await ctx.db.insert("kanbanColumns", {
+        projectId,
+        userId: args.userId,
+        name: col.name,
+        emoji: col.emoji,
+        color: col.color,
+        order: col.order,
+        isDefault: col.isDefault,
+        isCompleteColumn: col.isCompleteColumn,
+        createdAt: Date.now(),
+      });
+    }
+
     return projectId;
   },
 });
@@ -221,42 +237,52 @@ export const archive = mutation({
   },
 });
 
-// Delete a project permanently (and all its tasks)
+// Delete a project permanently (and all its tasks and columns)
 export const deleteProject = mutation({
   args: { projectId: v.id("projects") },
   handler: async (ctx, args) => {
     const project = await ctx.db.get(args.projectId);
     if (!project) throw new Error("Project not found");
-    
+
     // Delete all tasks in this project
     const tasks = await ctx.db
       .query("tasks")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
-    
+
     for (const task of tasks) {
       await ctx.db.delete(task._id);
     }
-    
+
+    // Delete all kanban columns in this project
+    const columns = await ctx.db
+      .query("kanbanColumns")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+
+    for (const column of columns) {
+      await ctx.db.delete(column._id);
+    }
+
     // If deleting active project, activate another one
     if (project.isActive) {
       const otherProjects = await ctx.db
         .query("projects")
         .withIndex("by_user", (q) => q.eq("userId", project.userId))
         .collect();
-      
+
       const nextActive = otherProjects.find(
         (p) => p._id !== args.projectId && !p.isArchived
       );
-      
+
       if (nextActive) {
         await ctx.db.patch(nextActive._id, { isActive: true });
       }
     }
-    
+
     // Delete the project
     await ctx.db.delete(args.projectId);
-    
+
     return { success: true };
   },
 });
@@ -269,35 +295,42 @@ export const getStats = query({
       .query("tasks")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
-    
+
+    const columns = await ctx.db
+      .query("kanbanColumns")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+
     const sessions = await ctx.db
       .query("sessions")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
-    
-    const todoCount = tasks.filter((t) => t.status === "todo").length;
-    const inProgressCount = tasks.filter((t) => t.status === "in_progress").length;
-    const doneCount = tasks.filter((t) => t.status === "done").length;
-    
+
+    // Group tasks by column type
+    const completeColumnIds = new Set(
+      columns.filter((c) => c.isCompleteColumn).map((c) => c._id)
+    );
+
+    const doneCount = tasks.filter((t) => completeColumnIds.has(t.columnId)).length;
+    const incompleteCount = tasks.length - doneCount;
+
     const totalMinutes = sessions.reduce((acc, s) => {
       if (s.endTime) {
         return acc + (s.endTime - s.startTime) / (1000 * 60);
       }
       return acc;
     }, 0);
-    
+
     return {
       taskCounts: {
-        todo: todoCount,
-        inProgress: inProgressCount,
+        incomplete: incompleteCount,
         done: doneCount,
         total: tasks.length,
       },
       sessions: sessions.length,
       totalMinutes: Math.round(totalMinutes),
-      completionRate: tasks.length > 0 
-        ? Math.round((doneCount / tasks.length) * 100) 
-        : 0,
+      completionRate:
+        tasks.length > 0 ? Math.round((doneCount / tasks.length) * 100) : 0,
     };
   },
 });

@@ -4,18 +4,18 @@ import { api } from '../convex/_generated/api'
 import { Id } from '../convex/_generated/dataModel'
 import { TimerScreen } from './screens/Timer'
 import { LockedScreen } from './screens/Locked'
-import { SetupScreen } from './screens/Setup'
+import { WelcomeScreen } from './screens/Welcome'
 import { PairingScreen } from './screens/Pairing'
-import { ProfileScreen } from './screens/Profile'
 import { HealthScreen } from './screens/Health'
 import { ProjectScreen } from './screens/Project'
 import { CreateProjectScreen } from './screens/CreateProject'
 import { QRGeneratorScreen } from './screens/QRGenerator'
+import { SettingsScreen } from './screens/Settings'
 
-type AppState = 'setup' | 'pairing' | 'onboarding' | 'timer' | 'locked' | 'profile' | 'health' | 'project' | 'create_project' | 'qr_generator'
+type AppState = 'welcome' | 'pairing' | 'timer' | 'locked' | 'health' | 'project' | 'create_project' | 'qr_generator' | 'settings'
 
 function App(): JSX.Element {
-  const [appState, setAppState] = useState<AppState>('setup')
+  const [appState, setAppState] = useState<AppState>('welcome')
   const [userId, setUserId] = useState<Id<'users'> | null>(null)
   const [deviceId, setDeviceId] = useState<Id<'devices'> | null>(null)
   const [isDevMode, setIsDevMode] = useState(false)
@@ -23,12 +23,6 @@ function App(): JSX.Element {
   const [selectedProjectId, setSelectedProjectId] = useState<Id<'projects'> | null>(null)
 
   const unlockDevice = useMutation(api.devices.unlock)
-  
-  // Check if user has completed onboarding
-  const isOnboarded = useQuery(
-    api.userProfiles.isOnboarded,
-    userId ? { userId } : 'skip'
-  )
 
   // Check if we're in dev mode
   useEffect(() => {
@@ -75,18 +69,9 @@ function App(): JSX.Element {
     if (savedUserId && savedDeviceId) {
       setUserId(savedUserId as Id<'users'>)
       setDeviceId(savedDeviceId as Id<'devices'>)
-      // Will check onboarding status below
       setAppState('timer')
     }
   }, [])
-
-  // Check onboarding status when we have userId
-  useEffect(() => {
-    if (userId && isOnboarded === false && appState === 'timer') {
-      // User hasn't completed onboarding yet
-      setAppState('onboarding')
-    }
-  }, [userId, isOnboarded, appState])
 
   // Subscribe to device lock info (status + message)
   const lockInfo = useQuery(
@@ -102,8 +87,8 @@ function App(): JSX.Element {
       return
     }
 
-    // Don't interrupt profile editing
-    if (appState === 'profile' || appState === 'onboarding') {
+    // Don't interrupt settings editing
+    if (appState === 'settings') {
       return
     }
 
@@ -125,41 +110,20 @@ function App(): JSX.Element {
     }
   }, [appState])
 
-  const handleSetupComplete = (newUserId: Id<'users'>, newDeviceId: Id<'devices'>) => {
+  const handleWelcomeComplete = (newUserId: Id<'users'>, newDeviceId: Id<'devices'>) => {
     setUserId(newUserId)
     setDeviceId(newDeviceId)
     localStorage.setItem('sentinel_userId', newUserId)
     localStorage.setItem('sentinel_deviceId', newDeviceId)
-    setAppState('pairing')
-  }
-
-  const handlePairingComplete = () => {
-    // If user is already onboarded, go to timer; otherwise go to onboarding
-    if (isOnboarded) {
-      setAppState('timer')
-    } else {
-      setAppState('onboarding')
-    }
-  }
-
-  const handleSkipPairing = () => {
-    // If user is already onboarded, go to timer; otherwise go to onboarding
-    if (isOnboarded) {
-      setAppState('timer')
-    } else {
-      setAppState('onboarding')
-    }
-  }
-
-  const handleOnboardingComplete = () => {
+    // Go directly to timer - we'll introduce pairing and profile later
     setAppState('timer')
   }
 
-  const handleOpenProfile = () => {
-    setAppState('profile')
+  const handlePairingComplete = () => {
+    setAppState('timer')
   }
 
-  const handleProfileClose = () => {
+  const handleSkipPairing = () => {
     setAppState('timer')
   }
 
@@ -197,6 +161,14 @@ function App(): JSX.Element {
     setAppState('timer')
   }
 
+  const handleOpenSettings = () => {
+    setAppState('settings')
+  }
+
+  const handleSettingsClose = () => {
+    setAppState('timer')
+  }
+
   // Dev mode banner component
   const DevModeBanner = () => {
     if (!isDevMode) return null
@@ -218,8 +190,8 @@ function App(): JSX.Element {
   // Render the appropriate screen
   const renderScreen = () => {
     switch (appState) {
-      case 'setup':
-        return <SetupScreen onComplete={handleSetupComplete} />
+      case 'welcome':
+        return <WelcomeScreen onComplete={handleWelcomeComplete} />
       case 'pairing':
         return (
           <PairingScreen
@@ -228,33 +200,17 @@ function App(): JSX.Element {
             onSkip={handleSkipPairing}
           />
         )
-      case 'onboarding':
-        return (
-          <ProfileScreen
-            userId={userId!}
-            onComplete={handleOnboardingComplete}
-            isOnboarding={true}
-          />
-        )
-      case 'profile':
-        return (
-          <ProfileScreen
-            userId={userId!}
-            onComplete={handleProfileClose}
-            isOnboarding={false}
-          />
-        )
       case 'timer':
         return (
-          <TimerScreen 
-            userId={userId!} 
+          <TimerScreen
+            userId={userId!}
             deviceId={deviceId!}
-            onOpenProfile={handleOpenProfile}
             onOpenHealth={handleOpenHealth}
             onOpenPairing={handleOpenPairing}
             onOpenQRGenerator={handleOpenQRGenerator}
             onOpenProject={handleOpenProject}
             onCreateProject={handleCreateProject}
+            onOpenSettings={handleOpenSettings}
           />
         )
       case 'health':
@@ -286,6 +242,14 @@ function App(): JSX.Element {
             onBack={() => setAppState('timer')}
           />
         )
+      case 'settings':
+        return (
+          <SettingsScreen
+            userId={userId!}
+            deviceId={deviceId!}
+            onBack={handleSettingsClose}
+          />
+        )
       case 'locked':
         return (
           <LockedScreen
@@ -296,7 +260,7 @@ function App(): JSX.Element {
           />
         )
       default:
-        return <SetupScreen onComplete={handleSetupComplete} />
+        return <WelcomeScreen onComplete={handleWelcomeComplete} />
     }
   }
 

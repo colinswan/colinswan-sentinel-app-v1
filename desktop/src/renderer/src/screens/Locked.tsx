@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useMutation } from 'convex/react'
+import { QRCodeSVG } from 'qrcode.react'
 import { api } from '../../convex/_generated/api'
 import { Id } from '../../convex/_generated/dataModel'
 
@@ -226,40 +227,48 @@ export function LockedScreen({ isDevMode, lockMessage, currentTask, deviceId }: 
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col items-center justify-center px-8 relative z-10">
-        {/* Lock Icon */}
-        <div className="relative mb-8">
-          <div className="w-32 h-32 rounded-3xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-2xl shadow-red-500/30 pulse-glow">
-            <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-          </div>
-          <div className="absolute -inset-4 bg-red-500/20 rounded-[2rem] blur-xl -z-10 animate-pulse" />
+        {/* Status */}
+        <div className="mb-6 text-center">
+          <h1 className="text-4xl font-bold text-zinc-100 mb-2">Time to Move!</h1>
+          <p className="text-zinc-500">Your screen is locked until you take a break</p>
         </div>
 
-        {/* Status */}
-        <div className="mb-8 text-center">
-          <h1 className="text-5xl font-bold text-zinc-100 mb-2">Screen Locked</h1>
-          <p className="text-zinc-500">Time to take a break</p>
-        </div>
+        {/* QR Code Card */}
+        {deviceId && (
+          <div className="bg-white rounded-3xl p-6 mb-6 shadow-2xl fade-in-up">
+            <QRCodeSVG
+              value={`sentinel://unlock/${deviceId}`}
+              size={200}
+              level="M"
+              includeMargin={false}
+            />
+          </div>
+        )}
+
+        {/* Scan instruction */}
+        <p className="text-zinc-400 text-center mb-6 max-w-xs">
+          Scan with your phone to unlock
+          <br />
+          <span className="text-zinc-600 text-sm">(or walk to your QR checkpoint)</span>
+        </p>
 
         {/* Action Card */}
-        <div className="w-full max-w-md bg-zinc-900/80 backdrop-blur-sm rounded-3xl p-6 border border-zinc-800/50 mb-6 fade-in-up">
+        <div className="w-full max-w-md bg-zinc-900/80 backdrop-blur-sm rounded-2xl p-5 border border-zinc-800/50 mb-4 fade-in-up">
           <div className="flex items-start gap-4">
-            <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${color} flex items-center justify-center shadow-lg flex-shrink-0`}>
-              <span className="text-3xl">{emoji}</span>
+            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center shadow-lg flex-shrink-0`}>
+              <span className="text-2xl">{emoji}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-lg font-semibold text-zinc-100 leading-snug">{displayMessage}</p>
-              <p className="text-zinc-500 text-sm mt-1">Scan QR checkpoint with your phone</p>
+              <p className="text-base font-medium text-zinc-100 leading-snug">{displayMessage}</p>
             </div>
           </div>
         </div>
 
         {/* Current Task */}
         {currentTask && (
-          <div className="w-full max-w-md bg-zinc-900/50 rounded-2xl px-5 py-4 border border-zinc-800/50 mb-6 fade-in-up">
+          <div className="w-full max-w-md bg-zinc-900/50 rounded-xl px-4 py-3 border border-zinc-800/50 mb-4 fade-in-up">
             <p className="text-xs text-zinc-600 uppercase tracking-wider mb-1">You were working on</p>
-            <p className="text-zinc-300">{currentTask}</p>
+            <p className="text-zinc-300 text-sm">{currentTask}</p>
           </div>
         )}
 

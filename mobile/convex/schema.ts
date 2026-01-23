@@ -21,6 +21,11 @@ export default defineSchema({
     autoStartTimer: v.optional(v.boolean()),       // Auto-start timer when app opens (default: true)
     autoStartDurationMins: v.optional(v.number()), // Duration for auto-started sessions (default: 60)
     launchAtLogin: v.optional(v.boolean()),        // Launch app on system startup (default: true)
+
+    // Lock/Unlock Settings
+    preLockCountdownSecs: v.optional(v.number()),  // Countdown before lock (default: 10)
+    calfRaisesCount: v.optional(v.number()),       // Required calf raises (default: 15)
+    enforceBreakDuration: v.optional(v.boolean()), // Enforce break after unlock (default: false)
   }),
 
   devices: defineTable({

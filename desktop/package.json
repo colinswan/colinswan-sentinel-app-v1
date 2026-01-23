@@ -1,6 +1,6 @@
 {
   "name": "sentinel-desktop",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Sentinel - Health enforcement desktop lock",
   "main": "./out/main/index.js",
   "author": "Colin Swan",
@@ -51,7 +51,10 @@
       "target": [
         {
           "target": "zip",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "artifactName": "Sentinel-mac-${arch}.${ext}",
@@ -60,11 +63,15 @@
       "gatekeeperAssess": false
     },
     "win": {
-      "target": ["nsis"],
+      "target": [
+        "nsis"
+      ],
       "artifactName": "Sentinel-win.${ext}"
     },
     "linux": {
-      "target": ["AppImage"],
+      "target": [
+        "AppImage"
+      ],
       "artifactName": "Sentinel-linux.${ext}"
     },
     "nsis": {

@@ -40,6 +40,9 @@ export const updateSettings = mutation({
     autoStartTimer: v.optional(v.boolean()),
     autoStartDurationMins: v.optional(v.number()),
     launchAtLogin: v.optional(v.boolean()),
+    preLockCountdownSecs: v.optional(v.number()),
+    calfRaisesCount: v.optional(v.number()),
+    enforceBreakDuration: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const { userId, ...updates } = args;
@@ -53,6 +56,9 @@ export const updateSettings = mutation({
       autoStartTimer: boolean;
       autoStartDurationMins: number;
       launchAtLogin: boolean;
+      preLockCountdownSecs: number;
+      calfRaisesCount: number;
+      enforceBreakDuration: boolean;
     }> = {};
 
     if (updates.workDurationMins !== undefined) {
@@ -81,6 +87,15 @@ export const updateSettings = mutation({
     }
     if (updates.launchAtLogin !== undefined) {
       filteredUpdates.launchAtLogin = updates.launchAtLogin;
+    }
+    if (updates.preLockCountdownSecs !== undefined) {
+      filteredUpdates.preLockCountdownSecs = updates.preLockCountdownSecs;
+    }
+    if (updates.calfRaisesCount !== undefined) {
+      filteredUpdates.calfRaisesCount = updates.calfRaisesCount;
+    }
+    if (updates.enforceBreakDuration !== undefined) {
+      filteredUpdates.enforceBreakDuration = updates.enforceBreakDuration;
     }
 
     await ctx.db.patch(userId, filteredUpdates);

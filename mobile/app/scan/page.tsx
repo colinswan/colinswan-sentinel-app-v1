@@ -11,7 +11,6 @@ import Link from "next/link";
 const CHECKPOINT_PREFIX = "sentinel-checkpoint-";
 const MIN_NOTE_LENGTH = 10;
 const SUCCESS_DISPLAY_TIME = 5000; // 5 seconds to read while walking back
-const DEFAULT_CALF_RAISES = 15;
 
 type ScanState = "scanning" | "accountability" | "analyzing" | "feedback" | "success" | "error";
 type TaskStatus = "done" | "in_progress" | "blocked";
@@ -39,6 +38,13 @@ export default function ScanPage() {
 
   const unlock = useMutation(api.devices.unlock);
   const analyzeNote = useAction(api.ai.analyzeNote);
+
+  // Fetch user settings for calf raise count
+  const userSettings = useQuery(
+    api.users.get,
+    userId ? { userId } : "skip"
+  );
+  const calfRaisesCount = userSettings?.calfRaisesCount ?? 15;
 
   // Fetch a random past win for the success screen
   const pastWin = useQuery(
@@ -386,7 +392,7 @@ export default function ScanPage() {
                 </div>
                 <div className="text-left flex-1">
                   <p className={`text-sm font-medium ${physicalChallengeComplete ? "text-green-400" : "text-zinc-300"}`}>
-                    I completed {DEFAULT_CALF_RAISES} calf raises
+                    I completed {calfRaisesCount} calf raises
                   </p>
                   <p className="text-xs text-zinc-500">
                     Helps blood flow & prevents DVT
